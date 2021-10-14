@@ -95,11 +95,11 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
     /** Tests the triggering and successful completion of an asynchronous operation. */
     @Test
     public void testOperationCompletion() throws Exception {
-        final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+        final CompletableFuture<String> savepointLocationFuture = new CompletableFuture<>();
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointFunction(
-                                (JobID jobId, String directory) -> savepointFuture)
+                        .setTriggerSavepointAndGetLocationFunction(
+                                (JobID jobId, String directory) -> savepointLocationFuture)
                         .build();
 
         // trigger the operation
@@ -118,7 +118,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
         // complete the operation
         final String savepointPath = "foobar";
-        savepointFuture.complete(savepointPath);
+        savepointLocationFuture.complete(savepointPath);
 
         operationResult =
                 testingStatusHandler
@@ -136,7 +136,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
         final FlinkException testException = new FlinkException("Test exception");
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointFunction(
+                        .setTriggerSavepointAndGetLocationFunction(
                                 (JobID jobId, String directory) ->
                                         FutureUtils.completedExceptionally(testException))
                         .build();
@@ -197,7 +197,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
         final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointFunction(
+                        .setTriggerSavepointAndGetLocationFunction(
                                 (JobID jobId, String directory) -> savepointFuture)
                         .build();
 
@@ -380,7 +380,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
                     TestOperationKey operationKey,
                     RestfulGateway gateway)
                     throws RestHandlerException {
-                return gateway.triggerSavepoint(new JobID(), null, false, new TriggerId(), timeout);
+                return gateway.triggerSavepointAndGetLocation(
+                        new JobID(), null, false, new TriggerId(), timeout);
             }
 
             @Override

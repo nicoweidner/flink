@@ -78,7 +78,7 @@ public class CompletedOperationCacheTest extends TestLogger {
 
         assertTrue(operationResultOptional.isPresent());
         OperationResult<String> operationResult = operationResultOptional.get();
-        assertEquals(operationResult.getStatus(), OperationResult.OperationResultStatus.SUCCESS);
+        assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
         assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
         assertThat(closeCacheFuture.isDone(), is(true));
     }
@@ -111,7 +111,7 @@ public class CompletedOperationCacheTest extends TestLogger {
 
         assertTrue(operationResultOptional.isPresent());
         final OperationResult<String> operationResult = operationResultOptional.get();
-        assertEquals(operationResult.getStatus(), OperationResult.OperationResultStatus.SUCCESS);
+        assertEquals(operationResult.getStatus(), OperationResultStatus.SUCCESS);
         assertThat(operationResult.getResult(), is(equalTo(TEST_OPERATION_RESULT.get())));
     }
 }

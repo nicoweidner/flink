@@ -60,6 +60,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
+import org.apache.flink.runtime.rest.handler.async.OperationResultStatus;
 import org.apache.flink.runtime.rest.handler.async.UnknownOperationKeyException;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.TriggerId;
@@ -694,28 +695,46 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     // TODO: this needs to return a future which gets complete once the savepoint is actually
     // TODO: triggered; if complete reutrn 204 ACCEPTED, on error handle them
-    // TODO: / we may need a separate versions of this method for
-    // TODO: the REST API / (job client / minicluster), which _may_ need to wired down to the
-    // TODO: JobMaster
-    public CompletableFuture<String> triggerSavepoint(
+    public CompletableFuture<Acknowledge> triggerSavepoint(
             final JobID jobId,
             final String targetDirectory,
             final boolean cancelJob,
             TriggerId operationId,
             final Time timeout) {
 
-        // TODO: check cache for duplicate requests
+        AsynchronousJobOperationKey operationKey =
+                AsynchronousJobOperationKey.of(operationId, jobId);
+        Optional<OperationResult<String>> existingTriggerResultOptional =
+                savepointOperationCache.get(operationKey);
 
+        if (existingTriggerResultOptional.isEmpty()) {
+            // TODO: maybe derive the error code / successful trigger from whether this can
+            // TODO: returns without an exception; preconditions should be checked synchronously
+            savepointOperationCache.registerOngoingOperation(
+                    operationKey,
+                    performOperationOnJobMasterGateway(
+                            jobId,
+                            gateway ->
+                                    gateway.triggerSavepoint(targetDirectory, cancelJob, timeout)));
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        }
+
+        return convertToFuture(existingTriggerResultOptional.get());
+    }
+
+    @Override
+    public CompletableFuture<String> triggerSavepointAndGetLocation(
+            final JobID jobId,
+            final String targetDirectory,
+            final boolean cancelJob,
+            TriggerId operationId,
+            final Time timeout) {
         return performOperationOnJobMasterGateway(
-                // TODO: maybe derive the error code / successful trigger from whether this can
-                // TODO: returns without an exception; preconditions should be checked synchronously
                 jobId, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
     }
 
-    public CompletableFuture<OperationResult<String>> getSavepointTriggerStatus(
-            final JobID jobId, TriggerId operationId) {
-        AsynchronousJobOperationKey operationKey =
-                AsynchronousJobOperationKey.of(operationId, jobId);
+    public CompletableFuture<OperationResult<String>> getSavepointStatus(
+            AsynchronousJobOperationKey operationKey) {
         Optional<OperationResult<String>> operationResultOptional =
                 savepointOperationCache.get(operationKey);
         if (operationResultOptional.isEmpty()) {
@@ -725,7 +744,40 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
+    public CompletableFuture<Acknowledge> stopWithSavepoint(
+            final JobID jobId,
+            final String targetDirectory,
+            final boolean terminate,
+            TriggerId triggerId,
+            final Time timeout) {
+
+        AsynchronousJobOperationKey operationKey = AsynchronousJobOperationKey.of(triggerId, jobId);
+        Optional<OperationResult<String>> existingTriggerResultOptional =
+                savepointOperationCache.get(operationKey);
+
+        if (existingTriggerResultOptional.isEmpty()) {
+            savepointOperationCache.registerOngoingOperation(
+                    operationKey,
+                    performOperationOnJobMasterGateway(
+                            jobId,
+                            gateway ->
+                                    gateway.stopWithSavepoint(
+                                            targetDirectory, terminate, timeout)));
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        }
+
+        return convertToFuture(existingTriggerResultOptional.get());
+    }
+
+    private CompletableFuture<Acknowledge> convertToFuture(OperationResult<String> result) {
+        if (result.getStatus() == OperationResultStatus.FAILURE) {
+            return CompletableFuture.failedFuture(result.getThrowable());
+        }
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
             final boolean terminate,

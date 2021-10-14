@@ -69,10 +69,4 @@ public class OperationResult<R> {
     public static <R> OperationResult<R> inProgress() {
         return new OperationResult<>(OperationResultStatus.IN_PROGRESS, null, null);
     }
-
-    enum OperationResultStatus {
-        SUCCESS,
-        FAILURE,
-        IN_PROGRESS
-    }
 }

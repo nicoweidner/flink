@@ -70,4 +70,15 @@ public class AsynchronousJobOperationKey extends OperationKey {
     public int hashCode() {
         return Objects.hash(super.hashCode(), jobId);
     }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName()
+                + "{"
+                + "triggerId="
+                + getTriggerId()
+                + ", jobId="
+                + jobId
+                + '}';
+    }
 }

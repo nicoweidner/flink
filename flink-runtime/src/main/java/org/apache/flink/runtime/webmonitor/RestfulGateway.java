@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -34,6 +33,8 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.rest.handler.async.OperationResult;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -139,10 +140,19 @@ public interface RestfulGateway extends RpcGateway {
      * @param targetDirectory Target directory for the savepoint.
      * @param operationId the ID of the operation fot deduplication purposes
      * @param timeout Timeout for the asynchronous operation
-     * @return A future to the {@link CompletedCheckpoint#getExternalPointer() external pointer} of
-     *     the savepoint.
+     * @return Future which is completed once the operation is triggered successfully
      */
-    default CompletableFuture<String> triggerSavepoint(
+    default CompletableFuture<Acknowledge> triggerSavepoint(
+            JobID jobId,
+            String targetDirectory,
+            boolean cancelJob,
+            // TODO: refactor to use AsynchronousJobOperationKey?
+            TriggerId operationId,
+            @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    default CompletableFuture<String> triggerSavepointAndGetLocation(
             JobID jobId,
             String targetDirectory,
             boolean cancelJob,
@@ -160,13 +170,27 @@ public interface RestfulGateway extends RpcGateway {
      *     directory should be used
      * @param terminate flag indicating if the job should terminate or just suspend
      * @param timeout for the rpc call
-     * @return Future which is completed with the savepoint path once completed
+     * @return Future which is completed once the operation is triggered successfully
      */
-    default CompletableFuture<String> stopWithSavepoint(
+    default CompletableFuture<Acknowledge> stopWithSavepoint(
+            final JobID jobId,
+            final String targetDirectory,
+            final boolean terminate,
+            TriggerId triggerId,
+            @RpcTimeout final Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    default CompletableFuture<String> stopWithSavepointAndGetLocation(
             final JobID jobId,
             final String targetDirectory,
             final boolean terminate,
             @RpcTimeout final Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    default CompletableFuture<OperationResult<String>> getSavepointStatus(
+            AsynchronousJobOperationKey operationKey) {
         throw new UnsupportedOperationException();
     }
 
