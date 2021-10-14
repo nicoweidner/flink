@@ -30,10 +30,10 @@ import java.util.function.Function;
 /** Utility functions used in tests. */
 public class SavepointTestUtilities {
     public static BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
-            setReferenceToTriggerId(AtomicReference<AsynchronousJobOperationKey> key) {
+            setReferenceToOperationKey(AtomicReference<AsynchronousJobOperationKey> key) {
         return (AsynchronousJobOperationKey operationKey, String directory) -> {
             key.set(operationKey);
-            return null;
+            return CompletableFuture.completedFuture(Acknowledge.get());
         };
     }
 

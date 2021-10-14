@@ -53,7 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.rest.handler.job.savepoints.SavepointTestUtilities.getResultIfKeyMatches;
-import static org.apache.flink.runtime.rest.handler.job.savepoints.SavepointTestUtilities.setReferenceToTriggerId;
+import static org.apache.flink.runtime.rest.handler.job.savepoints.SavepointTestUtilities.setReferenceToOperationKey;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
@@ -99,7 +99,7 @@ public class SavepointHandlersTest extends TestLogger {
         final AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointFunction(setReferenceToTriggerId(keyReference))
+                        .setTriggerSavepointFunction(setReferenceToOperationKey(keyReference))
                         .setGetSavepointStatusFunction(
                                 getResultIfKeyMatches(successfulResult, keyReference))
                         .build();
@@ -180,7 +180,7 @@ public class SavepointHandlersTest extends TestLogger {
         final AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
         TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointFunction(setReferenceToTriggerId(keyReference))
+                        .setTriggerSavepointFunction(setReferenceToOperationKey(keyReference))
                         .setGetSavepointStatusFunction(
                                 getResultIfKeyMatches(failedResult, keyReference))
                         .build();

@@ -142,10 +142,8 @@ public class SavepointHandlers {
                 throws RestHandlerException {
             final AsynchronousJobOperationKey operationKey = createOperationKey(request);
 
-            triggerOperation(request, operationKey, gateway);
-
-            return CompletableFuture.completedFuture(
-                    new TriggerResponse(operationKey.getTriggerId()));
+            return triggerOperation(request, operationKey, gateway)
+                    .thenApply(acknowledge -> new TriggerResponse(operationKey.getTriggerId()));
         }
 
         protected abstract CompletableFuture<Acknowledge> triggerOperation(
@@ -261,7 +259,7 @@ public class SavepointHandlers {
             final AsynchronousJobOperationKey key = getOperationKey(request);
 
             return gateway.getTriggeredSavepointStatus(key)
-                    .<AsynchronousOperationResult<SavepointInfo>>thenApply(
+                    .thenApply(
                             (operationResult) -> {
                                 switch (operationResult.getStatus()) {
                                     case SUCCESS:
@@ -281,11 +279,7 @@ public class SavepointHandlers {
                                                         + ", encountered for key "
                                                         + key);
                                 }
-                            })
-                    .exceptionally(
-                            (throwable ->
-                                    AsynchronousOperationResult.completed(
-                                            exceptionalOperationResultResponse(throwable))));
+                            });
         }
 
         protected AsynchronousJobOperationKey getOperationKey(
