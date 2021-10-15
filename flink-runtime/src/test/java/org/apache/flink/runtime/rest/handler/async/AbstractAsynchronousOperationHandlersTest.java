@@ -20,10 +20,12 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -65,15 +67,14 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10L);
 
-    private TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers;
-
     private TestingAsynchronousOperationHandlers.TestingTriggerHandler testingTriggerHandler;
 
     private TestingAsynchronousOperationHandlers.TestingStatusHandler testingStatusHandler;
 
     @Before
     public void setup() {
-        testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers();
+        TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers =
+                new TestingAsynchronousOperationHandlers();
 
         testingTriggerHandler =
                 testingAsynchronousOperationHandlers
@@ -95,11 +96,12 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
     /** Tests the triggering and successful completion of an asynchronous operation. */
     @Test
     public void testOperationCompletion() throws Exception {
-        final CompletableFuture<String> savepointLocationFuture = new CompletableFuture<>();
+        final CompletableFuture<Acknowledge> acknowledgeFuture = new CompletableFuture<>();
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointAndGetLocationFunction(
-                                (JobID jobId, String directory) -> savepointLocationFuture)
+                        .setTriggerSavepointFunction(
+                                (AsynchronousJobOperationKey operationKey, String directory) ->
+                                        acknowledgeFuture)
                         .build();
 
         // trigger the operation
@@ -117,8 +119,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
         assertThat(operationResult.queueStatus().getId(), is(QueueStatus.inProgress().getId()));
 
         // complete the operation
-        final String savepointPath = "foobar";
-        savepointLocationFuture.complete(savepointPath);
+        acknowledgeFuture.complete(Acknowledge.get());
 
         operationResult =
                 testingStatusHandler
@@ -127,7 +128,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
         assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
 
-        assertThat(operationResult.resource().value, is(savepointPath));
+        assertThat(operationResult.resource().value, is(Acknowledge.get()));
     }
 
     /** Tests the triggering and exceptional completion of an asynchronous operation. */
@@ -136,8 +137,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
         final FlinkException testException = new FlinkException("Test exception");
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointAndGetLocationFunction(
-                                (JobID jobId, String directory) ->
+                        .setTriggerSavepointFunction(
+                                (AsynchronousJobOperationKey operationKey, String directory) ->
                                         FutureUtils.completedExceptionally(testException))
                         .build();
 
@@ -194,11 +195,12 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
      */
     @Test
     public void testCloseShouldFinishOnFirstServedResult() throws Exception {
-        final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+        final CompletableFuture<Acknowledge> acknowledgeFuture = new CompletableFuture<>();
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
-                        .setTriggerSavepointAndGetLocationFunction(
-                                (JobID jobId, String directory) -> savepointFuture)
+                        .setTriggerSavepointFunction(
+                                (AsynchronousJobOperationKey operationKey, String directory) ->
+                                        acknowledgeFuture)
                         .build();
 
         final TriggerId triggerId =
@@ -214,7 +216,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
         assertThat(closeFuture.isDone(), is(false));
 
-        savepointFuture.complete("foobar");
+        acknowledgeFuture.complete(Acknowledge.get());
         testingStatusHandler
                 .handleRequest(statusOperationRequest(triggerId), testingRestfulGateway)
                 .get();
@@ -262,9 +264,9 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
     private static final class OperationResult {
         @Nullable private final Throwable throwable;
 
-        @Nullable private final String value;
+        @Nullable private final Acknowledge value;
 
-        OperationResult(@Nullable String value, @Nullable Throwable throwable) {
+        OperationResult(@Nullable Acknowledge value, @Nullable Throwable throwable) {
             this.value = value;
             this.throwable = throwable;
         }
@@ -360,7 +362,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
     }
 
     private static final class TestingAsynchronousOperationHandlers
-            extends AbstractAsynchronousOperationHandlers<TestOperationKey, String> {
+            extends AbstractAsynchronousOperationHandlers<TestOperationKey, Acknowledge> {
 
         class TestingTriggerHandler
                 extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
@@ -375,12 +377,16 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
             }
 
             @Override
-            protected CompletableFuture<String> triggerOperation(
+            protected CompletableFuture<Acknowledge> triggerOperation(
                     HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
                     TestOperationKey operationKey,
                     RestfulGateway gateway)
                     throws RestHandlerException {
-                return gateway.triggerSavepointAndGetLocation(new JobID(), null, false, timeout);
+                return gateway.triggerSavepoint(
+                        AsynchronousJobOperationKey.of(new TriggerId(), new JobID()),
+                        null,
+                        false,
+                        timeout);
             }
 
             @Override
@@ -419,7 +425,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
             }
 
             @Override
-            protected OperationResult operationResultResponse(String operationResult) {
+            protected OperationResult operationResultResponse(Acknowledge operationResult) {
                 return new OperationResult(operationResult, null);
             }
         }

@@ -150,20 +150,6 @@ public interface RestfulGateway extends RpcGateway {
     }
 
     /**
-     * Triggers a savepoint with the given savepoint directory as a target, returning a future that
-     * completes with the savepoint location when it is complete.
-     *
-     * @param jobID the job id
-     * @param targetDirectory Target directory for the savepoint.
-     * @param timeout Timeout for the asynchronous operation
-     * @return Future which is completed once the operation is triggered successfully
-     */
-    default CompletableFuture<String> triggerSavepointAndGetLocation(
-            JobID jobID, String targetDirectory, boolean cancelJob, @RpcTimeout Time timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
      * Stops the job with a savepoint, returning a future that completes when the operation is
      * started.
      *
@@ -176,25 +162,6 @@ public interface RestfulGateway extends RpcGateway {
      */
     default CompletableFuture<Acknowledge> stopWithSavepoint(
             AsynchronousJobOperationKey operationKey,
-            final String targetDirectory,
-            final boolean terminate,
-            @RpcTimeout final Time timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Stops the job with a savepoint, returning a future that completes with the savepoint location
-     * when the savepoint is completed.
-     *
-     * @param jobID the job id
-     * @param targetDirectory to which to write the savepoint data or null if the default savepoint
-     *     directory should be used
-     * @param terminate flag indicating if the job should terminate or just suspend
-     * @param timeout for the rpc call
-     * @return Future which is completed with the savepoint location once it is completed
-     */
-    default CompletableFuture<String> stopWithSavepointAndGetLocation(
-            JobID jobID,
             final String targetDirectory,
             final boolean terminate,
             @RpcTimeout final Time timeout) {
