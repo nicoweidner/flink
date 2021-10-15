@@ -59,8 +59,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
-import org.apache.flink.runtime.rest.handler.async.OperationResultStatus;
-import org.apache.flink.runtime.rest.handler.async.UnknownOperationKeyException;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
@@ -143,7 +141,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private DispatcherBootstrap dispatcherBootstrap;
 
-    private final DispatcherCache<String> savepointOperationsCache;
+    private final DispatcherCachedOperationsHandler dispatcherCachedOperationsHandler;
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
@@ -195,7 +193,29 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
 
-        this.savepointOperationsCache = new DispatcherCache<>();
+        Function<TriggerSavepointParameters, CompletableFuture<String>> triggerSavepointFunction =
+                (parameters ->
+                        performOperationOnJobMasterGateway(
+                                parameters.getJobID(),
+                                gateway ->
+                                        gateway.triggerSavepoint(
+                                                parameters.getTargetDirectory(),
+                                                parameters.isCancelOrTerminate(),
+                                                parameters.getTimeout())));
+
+        Function<TriggerSavepointParameters, CompletableFuture<String>> stopWithSavepointFunction =
+                (parameters ->
+                        performOperationOnJobMasterGateway(
+                                parameters.getJobID(),
+                                gateway ->
+                                        gateway.stopWithSavepoint(
+                                                parameters.getTargetDirectory(),
+                                                parameters.isCancelOrTerminate(),
+                                                parameters.getTimeout())));
+
+        this.dispatcherCachedOperationsHandler =
+                new DispatcherCachedOperationsHandler(
+                        triggerSavepointFunction, stopWithSavepointFunction);
     }
 
     // ------------------------------------------------------
@@ -692,25 +712,19 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
-    // TODO: this needs to return a future which gets complete once the savepoint is actually
-    // TODO: triggered; if complete reutrn 204 ACCEPTED, on error handle them
     public CompletableFuture<Acknowledge> triggerSavepoint(
             final AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
             final boolean cancelJob,
             final Time timeout) {
-        try {
-            return convertToFuture(
-                    savepointOperationsCache.registerOperationIdempotently(
-                            operationKey,
-                            performOperationOnJobMasterGateway(
-                                    operationKey.getJobId(),
-                                    gateway ->
-                                            gateway.triggerSavepoint(
-                                                    targetDirectory, cancelJob, timeout))));
-        } catch (IllegalStateException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+        return dispatcherCachedOperationsHandler.triggerSavepoint(
+                operationKey,
+                TriggerSavepointParameters.builder()
+                        .jobID(operationKey.getJobId())
+                        .targetDirectory(targetDirectory)
+                        .cancelOrTerminate(cancelJob)
+                        .timeout(timeout)
+                        .build());
     }
 
     @Override
@@ -723,14 +737,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 jobID, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
     }
 
+    @Override
     public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
             AsynchronousJobOperationKey operationKey) {
-        return savepointOperationsCache
-                .getOperationResult(operationKey)
-                .map(CompletableFuture::completedFuture)
-                .orElse(
-                        CompletableFuture.failedFuture(
-                                new UnknownOperationKeyException(operationKey)));
+        return dispatcherCachedOperationsHandler.getSavepointStatus(operationKey);
     }
 
     @Override
@@ -739,25 +749,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             final String targetDirectory,
             final boolean terminate,
             final Time timeout) {
-        try {
-            return convertToFuture(
-                    savepointOperationsCache.registerOperationIdempotently(
-                            operationKey,
-                            performOperationOnJobMasterGateway(
-                                    operationKey.getJobId(),
-                                    gateway ->
-                                            gateway.stopWithSavepoint(
-                                                    targetDirectory, terminate, timeout))));
-        } catch (IllegalStateException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-    }
-
-    private CompletableFuture<Acknowledge> convertToFuture(OperationResult<String> result) {
-        if (result.getStatus() == OperationResultStatus.FAILURE) {
-            return CompletableFuture.failedFuture(result.getThrowable());
-        }
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        return dispatcherCachedOperationsHandler.stopWithSavepoint(
+                operationKey,
+                TriggerSavepointParameters.builder()
+                        .jobID(operationKey.getJobId())
+                        .targetDirectory(targetDirectory)
+                        .cancelOrTerminate(terminate)
+                        .timeout(timeout)
+                        .build());
     }
 
     @Override
