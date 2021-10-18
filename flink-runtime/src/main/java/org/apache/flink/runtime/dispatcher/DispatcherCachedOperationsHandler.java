@@ -36,7 +36,7 @@ import java.util.function.Function;
 public class DispatcherCachedOperationsHandler {
 
     private final CompletedOperationCache<AsynchronousJobOperationKey, String>
-            savepointTriggerCache = new CompletedOperationCache<>();
+            savepointTriggerCache;
 
     private final Function<TriggerSavepointParameters, CompletableFuture<String>>
             triggerSavepointFunction;
@@ -49,8 +49,18 @@ public class DispatcherCachedOperationsHandler {
                     triggerSavepointFunction,
             Function<TriggerSavepointParameters, CompletableFuture<String>>
                     stopWithSavepointFunction) {
+        this(triggerSavepointFunction, stopWithSavepointFunction, new CompletedOperationCache<>());
+    }
+
+    DispatcherCachedOperationsHandler(
+            Function<TriggerSavepointParameters, CompletableFuture<String>>
+                    triggerSavepointFunction,
+            Function<TriggerSavepointParameters, CompletableFuture<String>>
+                    stopWithSavepointFunction,
+            CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache) {
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
+        this.savepointTriggerCache = savepointTriggerCache;
     }
 
     public CompletableFuture<Acknowledge> triggerSavepoint(

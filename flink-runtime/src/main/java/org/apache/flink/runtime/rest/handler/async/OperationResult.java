@@ -20,6 +20,8 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import javax.annotation.Nullable;
 
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -68,5 +70,22 @@ public class OperationResult<R> {
 
     public static <R> OperationResult<R> inProgress() {
         return new OperationResult<>(OperationResultStatus.IN_PROGRESS, null, null);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        OperationResult<R> that = (OperationResult<R>) other;
+
+        return this.status == that.status
+                && Objects.equals(this.result, that.result)
+                && Objects.equals(this.throwable, that.throwable);
     }
 }
