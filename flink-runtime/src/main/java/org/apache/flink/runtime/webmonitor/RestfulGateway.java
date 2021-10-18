@@ -35,7 +35,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
-import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -134,38 +133,41 @@ public interface RestfulGateway extends RpcGateway {
             requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
     /**
-     * Triggers a savepoint with the given savepoint directory as a target.
+     * Triggers a savepoint with the given savepoint directory as a target, returning a future that
+     * completes when the operation is started.
      *
-     * @param jobId ID of the job for which the savepoint should be triggered.
+     * @param operationKey the key of the operation, for deduplication purposes
      * @param targetDirectory Target directory for the savepoint.
-     * @param operationId the ID of the operation fot deduplication purposes
      * @param timeout Timeout for the asynchronous operation
      * @return Future which is completed once the operation is triggered successfully
      */
     default CompletableFuture<Acknowledge> triggerSavepoint(
-            JobID jobId,
+            AsynchronousJobOperationKey operationKey,
             String targetDirectory,
             boolean cancelJob,
-            // TODO: refactor to use AsynchronousJobOperationKey?
-            TriggerId operationId,
-            @RpcTimeout Time timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    default CompletableFuture<String> triggerSavepointAndGetLocation(
-            JobID jobId,
-            String targetDirectory,
-            boolean cancelJob,
-            // TODO: refactor to use AsynchronousJobOperationKey?
-            TriggerId operationId,
             @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * Stops the job with a savepoint.
+     * Triggers a savepoint with the given savepoint directory as a target, returning a future that
+     * completes with the savepoint location when it is complete.
      *
-     * @param jobId ID of the job for which the savepoint should be triggered.
+     * @param jobID the job id
+     * @param targetDirectory Target directory for the savepoint.
+     * @param timeout Timeout for the asynchronous operation
+     * @return Future which is completed once the operation is triggered successfully
+     */
+    default CompletableFuture<String> triggerSavepointAndGetLocation(
+            JobID jobID, String targetDirectory, boolean cancelJob, @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Stops the job with a savepoint, returning a future that completes when the operation is
+     * started.
+     *
+     * @param operationKey key of the operation, for deduplication
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
      * @param terminate flag indicating if the job should terminate or just suspend
@@ -173,23 +175,40 @@ public interface RestfulGateway extends RpcGateway {
      * @return Future which is completed once the operation is triggered successfully
      */
     default CompletableFuture<Acknowledge> stopWithSavepoint(
-            final JobID jobId,
+            AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
             final boolean terminate,
-            TriggerId triggerId,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Stops the job with a savepoint, returning a future that completes with the savepoint location
+     * when the savepoint is completed.
+     *
+     * @param jobID the job id
+     * @param targetDirectory to which to write the savepoint data or null if the default savepoint
+     *     directory should be used
+     * @param terminate flag indicating if the job should terminate or just suspend
+     * @param timeout for the rpc call
+     * @return Future which is completed with the savepoint location once it is completed
+     */
     default CompletableFuture<String> stopWithSavepointAndGetLocation(
-            final JobID jobId,
+            JobID jobID,
             final String targetDirectory,
             final boolean terminate,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }
 
-    default CompletableFuture<OperationResult<String>> getSavepointStatus(
+    /**
+     * Get the status of of savepoint triggered under the specified operation key.
+     *
+     * @param operationKey key of the operation
+     * @return Future which completes immediately with the status, or fails if no operation is
+     *     registered for the key
+     */
+    default CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
             AsynchronousJobOperationKey operationKey) {
         throw new UnsupportedOperationException();
     }

@@ -380,8 +380,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
                     TestOperationKey operationKey,
                     RestfulGateway gateway)
                     throws RestHandlerException {
-                return gateway.triggerSavepointAndGetLocation(
-                        new JobID(), null, false, new TriggerId(), timeout);
+                return gateway.triggerSavepointAndGetLocation(new JobID(), null, false, timeout);
             }
 
             @Override

@@ -18,23 +18,21 @@
 
 package org.apache.flink.runtime.rest.handler.job.savepoints;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
-import org.apache.flink.runtime.rest.messages.TriggerId;
-import org.apache.flink.util.function.TriFunction;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Utility functions used in tests. */
 public class SavepointTestUtilities {
-    public static TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+    public static BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
             setReferenceToTriggerId(AtomicReference<AsynchronousJobOperationKey> key) {
-        return (JobID jobId, TriggerId triggerId, String directory) -> {
-            key.set(AsynchronousJobOperationKey.of(triggerId, jobId));
+        return (AsynchronousJobOperationKey operationKey, String directory) -> {
+            key.set(operationKey);
             return null;
         };
     }

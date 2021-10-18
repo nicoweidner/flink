@@ -63,7 +63,6 @@ import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.async.OperationResultStatus;
 import org.apache.flink.runtime.rest.handler.async.UnknownOperationKeyException;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
-import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -696,14 +695,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     // TODO: this needs to return a future which gets complete once the savepoint is actually
     // TODO: triggered; if complete reutrn 204 ACCEPTED, on error handle them
     public CompletableFuture<Acknowledge> triggerSavepoint(
-            final JobID jobId,
+            final AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
             final boolean cancelJob,
-            TriggerId operationId,
             final Time timeout) {
-
-        AsynchronousJobOperationKey operationKey =
-                AsynchronousJobOperationKey.of(operationId, jobId);
         Optional<OperationResult<String>> existingTriggerResultOptional =
                 savepointOperationCache.get(operationKey);
 
@@ -713,7 +708,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             savepointOperationCache.registerOngoingOperation(
                     operationKey,
                     performOperationOnJobMasterGateway(
-                            jobId,
+                            operationKey.getJobId(),
                             gateway ->
                                     gateway.triggerSavepoint(targetDirectory, cancelJob, timeout)));
             return CompletableFuture.completedFuture(Acknowledge.get());
@@ -724,16 +719,15 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     @Override
     public CompletableFuture<String> triggerSavepointAndGetLocation(
-            final JobID jobId,
+            final JobID jobID,
             final String targetDirectory,
             final boolean cancelJob,
-            TriggerId operationId,
             final Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
+                jobID, gateway -> gateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
     }
 
-    public CompletableFuture<OperationResult<String>> getSavepointStatus(
+    public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
             AsynchronousJobOperationKey operationKey) {
         Optional<OperationResult<String>> operationResultOptional =
                 savepointOperationCache.get(operationKey);
@@ -745,13 +739,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     @Override
     public CompletableFuture<Acknowledge> stopWithSavepoint(
-            final JobID jobId,
+            AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
             final boolean terminate,
-            TriggerId triggerId,
             final Time timeout) {
-
-        AsynchronousJobOperationKey operationKey = AsynchronousJobOperationKey.of(triggerId, jobId);
         Optional<OperationResult<String>> existingTriggerResultOptional =
                 savepointOperationCache.get(operationKey);
 
@@ -759,7 +750,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             savepointOperationCache.registerOngoingOperation(
                     operationKey,
                     performOperationOnJobMasterGateway(
-                            jobId,
+                            operationKey.getJobId(),
                             gateway ->
                                     gateway.stopWithSavepoint(
                                             targetDirectory, terminate, timeout)));
@@ -778,12 +769,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     @Override
     public CompletableFuture<String> stopWithSavepointAndGetLocation(
-            final JobID jobId,
+            JobID jobID,
             final String targetDirectory,
             final boolean terminate,
             final Time timeout) {
         return performOperationOnJobMasterGateway(
-                jobId, gateway -> gateway.stopWithSavepoint(targetDirectory, terminate, timeout));
+                jobID, gateway -> gateway.stopWithSavepoint(targetDirectory, terminate, timeout));
     }
 
     @Override

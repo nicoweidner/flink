@@ -25,7 +25,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
@@ -107,8 +106,7 @@ import java.util.concurrent.CompletableFuture;
  * }
  * </pre>
  */
-public class SavepointHandlers
-        extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, String> {
+public class SavepointHandlers {
 
     @Nullable private final String defaultSavepointDir;
 
@@ -118,8 +116,7 @@ public class SavepointHandlers
 
     private abstract static class SavepointHandlerBase<B extends RequestBody>
             extends AbstractRestHandler<
-                    RestfulGateway, B, TriggerResponse, SavepointTriggerMessageParameters>
-    {
+                    RestfulGateway, B, TriggerResponse, SavepointTriggerMessageParameters> {
 
         SavepointHandlerBase(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -181,8 +178,6 @@ public class SavepointHandlers
                 AsynchronousJobOperationKey operationKey,
                 final RestfulGateway gateway)
                 throws RestHandlerException {
-
-            final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
 
             if (requestedTargetDirectory == null && defaultSavepointDir == null) {
@@ -200,11 +195,7 @@ public class SavepointHandlers
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.stopWithSavepoint(
-                    jobId,
-                    targetDirectory,
-                    shouldDrain,
-                    operationKey.getTriggerId(),
-                    RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, shouldDrain, RpcUtils.INF_TIMEOUT);
         }
     }
 
@@ -225,7 +216,6 @@ public class SavepointHandlers
                 AsynchronousJobOperationKey operationKey,
                 RestfulGateway gateway)
                 throws RestHandlerException {
-            final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
             final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
 
             if (requestedTargetDirectory == null && defaultSavepointDir == null) {
@@ -243,11 +233,7 @@ public class SavepointHandlers
                             ? requestedTargetDirectory
                             : defaultSavepointDir;
             return gateway.triggerSavepoint(
-                    jobId,
-                    targetDirectory,
-                    cancelJob,
-                    operationKey.getTriggerId(),
-                    RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
         }
     }
 
@@ -274,7 +260,7 @@ public class SavepointHandlers
 
             final AsynchronousJobOperationKey key = getOperationKey(request);
 
-            return gateway.getSavepointStatus(key)
+            return gateway.getTriggeredSavepointStatus(key)
                     .<AsynchronousOperationResult<SavepointInfo>>thenApply(
                             (operationResult) -> {
                                 switch (operationResult.getStatus()) {

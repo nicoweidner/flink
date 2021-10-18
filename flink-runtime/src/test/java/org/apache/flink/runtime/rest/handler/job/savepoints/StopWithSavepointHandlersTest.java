@@ -134,7 +134,8 @@ public class StopWithSavepointHandlersTest extends TestLogger {
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
                         .setStopWithSavepointFunction(
-                                (JobID jobId, TriggerId triggerId, String targetDirectory) -> {
+                                (AsynchronousJobOperationKey operationKey,
+                                        String targetDirectory) -> {
                                     targetDirectoryFuture.complete(targetDirectory);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
@@ -157,7 +158,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
         TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
                         .setStopWithSavepointFunction(
-                                (JobID jobId, TriggerId triggerId, String directory) ->
+                                (AsynchronousJobOperationKey operationKey, String directory) ->
                                         CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
 

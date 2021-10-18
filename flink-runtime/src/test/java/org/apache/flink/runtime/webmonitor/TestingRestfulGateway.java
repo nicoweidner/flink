@@ -34,7 +34,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
-import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -82,17 +81,17 @@ public class TestingRestfulGateway implements RestfulGateway {
                     () -> CompletableFuture.completedFuture(Collections.emptyList());
     static final Supplier<CompletableFuture<Acknowledge>> DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER =
             () -> CompletableFuture.completedFuture(Acknowledge.get());
-    static final TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+    static final BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
             DEFAULT_TRIGGER_SAVEPOINT_FUNCTION =
-                    (JobID jobId, TriggerId triggerId, String targetDirectory) ->
+                    (AsynchronousJobOperationKey operationKey, String targetDirectory) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final BiFunction<JobID, String, CompletableFuture<String>>
             DEFAULT_TRIGGER_SAVEPOINT_AND_GET_LOCATION_FUNCTION =
                     (JobID jobId, String targetDirectory) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
-    static final TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+    static final BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
             DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION =
-                    (JobID jobId, TriggerId triggerId, String targetDirectory) ->
+                    (AsynchronousJobOperationKey operationKey, String targetDirectory) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final BiFunction<JobID, String, CompletableFuture<String>>
             DEFAULT_STOP_WITH_SAVEPOINT_AND_GET_LOCATION_FUNCTION =
@@ -143,13 +142,13 @@ public class TestingRestfulGateway implements RestfulGateway {
     protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
             requestTaskManagerMetricQueryServiceAddressesSupplier;
 
-    protected TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+    protected BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
             triggerSavepointFunction;
 
     protected BiFunction<JobID, String, CompletableFuture<String>>
             triggerSavepointAndGetLocationFunction;
 
-    protected TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+    protected BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
             stopWithSavepointFunction;
 
     protected BiFunction<JobID, String, CompletableFuture<String>>
@@ -202,11 +201,11 @@ public class TestingRestfulGateway implements RestfulGateway {
                     requestMetricQueryServiceAddressesSupplier,
             Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
                     requestTaskManagerMetricQueryServiceAddressesSupplier,
-            TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+            BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
                     triggerSavepointFunction,
             BiFunction<JobID, String, CompletableFuture<String>>
                     triggerSavepointAndGetLocationFunction,
-            TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+            BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
                     stopWithSavepointFunction,
             BiFunction<JobID, String, CompletableFuture<String>>
                     stopWithSavepointAndGetLocationFunction,
@@ -296,42 +295,36 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     @Override
     public CompletableFuture<Acknowledge> triggerSavepoint(
-            JobID jobId,
+            AsynchronousJobOperationKey operationKey,
             String targetDirectory,
             boolean cancelJob,
-            TriggerId operationId,
             Time timeout) {
-        return triggerSavepointFunction.apply(jobId, operationId, targetDirectory);
+        return triggerSavepointFunction.apply(operationKey, targetDirectory);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepointAndGetLocation(
-            JobID jobId,
-            String targetDirectory,
-            boolean cancelJob,
-            TriggerId operationId,
-            Time timeout) {
-        return triggerSavepointAndGetLocationFunction.apply(jobId, targetDirectory);
+            JobID jobID, String targetDirectory, boolean cancelJob, Time timeout) {
+        return triggerSavepointAndGetLocationFunction.apply(jobID, targetDirectory);
     }
 
     @Override
     public CompletableFuture<Acknowledge> stopWithSavepoint(
-            JobID jobId,
+            AsynchronousJobOperationKey operationKey,
             String targetDirectory,
             boolean terminate,
-            TriggerId triggerId,
             Time timeout) {
-        return stopWithSavepointFunction.apply(jobId, triggerId, targetDirectory);
+        return stopWithSavepointFunction.apply(operationKey, targetDirectory);
     }
 
     @Override
     public CompletableFuture<String> stopWithSavepointAndGetLocation(
-            JobID jobId, String targetDirectory, boolean terminate, Time timeout) {
-        return stopWithSavepointAndGetLocationFunction.apply(jobId, targetDirectory);
+            JobID jobID, String targetDirectory, boolean terminate, Time timeout) {
+        return stopWithSavepointAndGetLocationFunction.apply(jobID, targetDirectory);
     }
 
     @Override
-    public CompletableFuture<OperationResult<String>> getSavepointStatus(
+    public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
             AsynchronousJobOperationKey operationKey) {
         return getSavepointStatusFunction.apply(operationKey);
     }
@@ -379,11 +372,11 @@ public class TestingRestfulGateway implements RestfulGateway {
         protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
                 requestTaskManagerMetricQueryServiceGatewaysSupplier;
         protected Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier;
-        protected TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+        protected BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
                 triggerSavepointFunction;
         protected BiFunction<JobID, String, CompletableFuture<String>>
                 triggerSavepointAndGetLocationFunction;
-        protected TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+        protected BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
                 stopWithSavepointFunction;
         protected BiFunction<JobID, String, CompletableFuture<String>>
                 stopWithSavepointAndGetLocationFunction;
@@ -497,7 +490,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         }
 
         public T setTriggerSavepointFunction(
-                TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+                BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
                         triggerSavepointFunction) {
             this.triggerSavepointFunction = triggerSavepointFunction;
             return self();
@@ -511,7 +504,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         }
 
         public T setStopWithSavepointFunction(
-                TriFunction<JobID, TriggerId, String, CompletableFuture<Acknowledge>>
+                BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
                         stopWithSavepointFunction) {
             this.stopWithSavepointFunction = stopWithSavepointFunction;
             return self();
