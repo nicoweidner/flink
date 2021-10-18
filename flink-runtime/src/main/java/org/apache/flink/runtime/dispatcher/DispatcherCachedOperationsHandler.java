@@ -83,6 +83,10 @@ public class DispatcherCachedOperationsHandler {
                                 new UnknownOperationKeyException(operationKey)));
     }
 
+    public CompletableFuture<Void> shutDownCache() {
+        return savepointTriggerCache.closeAsync();
+    }
+
     private <P> CompletableFuture<Acknowledge> registerOperationIdempotently(
             AsynchronousJobOperationKey operationKey,
             Function<P, CompletableFuture<String>> operation,

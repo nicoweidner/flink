@@ -319,6 +319,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         ExceptionUtils.tryRethrowException(exception);
     }
 
+    @Override
+    public CompletableFuture<Void> shutDownCache() {
+        return dispatcherCachedOperationsHandler.shutDownCache();
+    }
+
     // ------------------------------------------------------
     // RPCs
     // ------------------------------------------------------
