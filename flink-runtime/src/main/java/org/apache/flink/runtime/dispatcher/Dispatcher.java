@@ -215,7 +215,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         this.dispatcherCachedOperationsHandler =
                 new DispatcherCachedOperationsHandler(
-                        triggerSavepointFunction, stopWithSavepointFunction);
+                        dispatcherServices.getOperationCaches(),
+                        triggerSavepointFunction,
+                        stopWithSavepointFunction);
     }
 
     // ------------------------------------------------------
@@ -317,11 +319,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         jobManagerMetricGroup.close();
 
         ExceptionUtils.tryRethrowException(exception);
-    }
-
-    @Override
-    public CompletableFuture<Void> shutDownCache() {
-        return dispatcherCachedOperationsHandler.shutDownCache();
     }
 
     // ------------------------------------------------------

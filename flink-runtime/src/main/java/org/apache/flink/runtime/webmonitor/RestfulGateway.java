@@ -208,16 +208,6 @@ public interface RestfulGateway extends RpcGateway {
     }
 
     /**
-     * Shut down any cache this gateway may manage, waiting for a grace period in case not all
-     * results were accessed yet.
-     *
-     * @return future which completes once all cached results were accessed or a timeout occurred.
-     */
-    default CompletableFuture<Void> shutDownCache() {
-        return CompletableFuture.completedFuture(null);
-    }
-
-    /**
      * Deliver a coordination request to a specified coordinator and return the response.
      *
      * @param jobId identifying the job which the coordinator belongs to

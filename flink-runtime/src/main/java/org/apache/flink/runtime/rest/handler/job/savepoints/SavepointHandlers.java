@@ -133,14 +133,6 @@ public class SavepointHandlers {
             return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
         }
 
-        @Override
-        public void close() {}
-
-        @Override
-        public CompletableFuture<Void> closeHandlerAsync() {
-            return leaderRetriever.getFuture().thenCompose(RestfulGateway::shutDownCache);
-        }
-
         public CompletableFuture<TriggerResponse> handleRequest(
                 @Nonnull HandlerRequest<B, SavepointTriggerMessageParameters> request,
                 @Nonnull RestfulGateway gateway)

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -45,13 +46,18 @@ public class DispatcherCachedOperationsHandler {
             stopWithSavepointFunction;
 
     DispatcherCachedOperationsHandler(
+            DispatcherOperationCaches operationCaches,
             Function<TriggerSavepointParameters, CompletableFuture<String>>
                     triggerSavepointFunction,
             Function<TriggerSavepointParameters, CompletableFuture<String>>
                     stopWithSavepointFunction) {
-        this(triggerSavepointFunction, stopWithSavepointFunction, new CompletedOperationCache<>());
+        this(
+                triggerSavepointFunction,
+                stopWithSavepointFunction,
+                operationCaches.getSavepointTriggerCache());
     }
 
+    @VisibleForTesting
     DispatcherCachedOperationsHandler(
             Function<TriggerSavepointParameters, CompletableFuture<String>>
                     triggerSavepointFunction,
@@ -81,10 +87,6 @@ public class DispatcherCachedOperationsHandler {
                 .orElse(
                         CompletableFuture.failedFuture(
                                 new UnknownOperationKeyException(operationKey)));
-    }
-
-    public CompletableFuture<Void> shutDownCache() {
-        return savepointTriggerCache.closeAsync();
     }
 
     private <P> CompletableFuture<Acknowledge> registerOperationIdempotently(
